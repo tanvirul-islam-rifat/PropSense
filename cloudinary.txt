@@ -1,0 +1,7 @@
+mongodb+srv://<db_username>:xMC9Gr8ji0j08a50@propsense.gvi1su5.mongodb.net/?appName=PropSense
+
+
+	
+Root
+194458648276759
+atkHbCp2Ro40xeZDMuBOInP7Nv8
