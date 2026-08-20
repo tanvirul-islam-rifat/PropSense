@@ -15,20 +15,16 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required' });
-    }
-
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(409).json({ message: 'Email already in use' });
+      return res.status(409).json({ success: false, message: 'Email already in use' });
     }
 
     const user = await User.create({
       name,
       email,
       password,
-      role: ['buyer', 'agent'].includes(role) ? role : 'buyer',
+      role: role || 'buyer',
       phone,
     });
 
@@ -38,7 +34,7 @@ export const register = async (req, res, next) => {
     await user.save();
 
     setRefreshCookie(res, refreshToken);
-    res.status(201).json({ user, accessToken });
+    res.status(201).json({ success: true, user, accessToken });
   } catch (err) {
     next(err);
   }
@@ -48,13 +44,9 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password +refreshTokens');
+    const user = await User.findOne({ email }).select('+password +refreshTokens');
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     const accessToken = signAccessToken(user._id);
@@ -63,7 +55,7 @@ export const login = async (req, res, next) => {
     await user.save();
 
     setRefreshCookie(res, refreshToken);
-    res.status(200).json({ user, accessToken });
+    res.status(200).json({ success: true, user, accessToken });
   } catch (err) {
     next(err);
   }
@@ -73,19 +65,19 @@ export const refresh = async (req, res, next) => {
   try {
     const token = req.cookies?.[REFRESH_COOKIE_NAME];
     if (!token) {
-      return res.status(401).json({ message: 'No refresh token provided' });
+      return res.status(401).json({ success: false, message: 'No refresh token provided' });
     }
 
     let decoded;
     try {
       decoded = verifyRefreshToken(token);
     } catch {
-      return res.status(401).json({ message: 'Refresh token invalid or expired' });
+      return res.status(401).json({ success: false, message: 'Refresh token invalid or expired' });
     }
 
     const user = await User.findById(decoded.id).select('+refreshTokens');
     if (!user || !user.refreshTokens.includes(token)) {
-      return res.status(401).json({ message: 'Refresh token not recognized' });
+      return res.status(401).json({ success: false, message: 'Refresh token not recognized' });
     }
 
     // Rotate: invalidate the used token and issue a new one
@@ -96,7 +88,7 @@ export const refresh = async (req, res, next) => {
 
     const accessToken = signAccessToken(user._id);
     setRefreshCookie(res, newRefreshToken);
-    res.status(200).json({ accessToken });
+    res.status(200).json({ success: true, accessToken });
   } catch (err) {
     next(err);
   }
@@ -114,12 +106,12 @@ export const logout = async (req, res, next) => {
       }
     }
     res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions);
-    res.status(200).json({ message: 'Logged out' });
+    res.status(200).json({ success: true, message: 'Logged out' });
   } catch (err) {
     next(err);
   }
 };
 
 export const me = async (req, res) => {
-  res.status(200).json({ user: req.user });
+  res.status(200).json({ success: true, user: req.user });
 };
